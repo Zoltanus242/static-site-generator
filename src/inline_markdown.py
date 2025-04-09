@@ -1,4 +1,5 @@
 from textnode import *
+import re
 
 def split_nodes_delimiter(old_nodes, delimiter, text_type):
     new_nodes = []
@@ -18,3 +19,59 @@ def split_nodes_delimiter(old_nodes, delimiter, text_type):
                 new_node = TextNode(text_list[i], text_type)
                 new_nodes.append(new_node)
     return new_nodes
+
+    #image r"!\[([^\[\]]*)\]\(([^\(\)]*)\)"
+    #regular links r"(?<!!)\[([^\[\]]*)\]\(([^\(\)]*)\)"
+def extract_markdown_images(text):
+    return re.findall(r"!\[([^\[\]]*)\]\(([^\(\)]*)\)", text)
+
+def extract_markdown_links(text):
+    return re.findall(r"(?<!!)\[([^\[\]]*)\]\(([^\(\)]*)\)", text)
+
+def split_nodes(old_nodes, extract_type, extract_text_type):
+    new_nodes = []
+    for old_node in old_nodes:
+        if old_node.text_type is not TextType.TEXT:
+            new_nodes.append(old_node)
+            continue
+        if old_node is None:
+            continue
+        image_extract = extract_type(old_node.text)
+        if len(image_extract) == 0:
+            new_nodes.append(old_node)
+            continue
+        text = old_node.text
+        sections = []
+        for i in range(len(image_extract)):
+            first_extract = image_extract[i][0]
+            second_extract = image_extract[i][1]
+            if len(image_extract[i][0]) == 0 or len(image_extract[i][1]) == 0:
+                continue
+            match extract_text_type:
+                case TextType.IMAGE:
+                    sections = text.split(f"![{first_extract}]({second_extract})", 1)
+                case TextType.LINK:
+                    sections = text.split(f"[{first_extract}]({second_extract})", 1)
+            if len(sections) > 1 and sections[1] != "":
+                text = sections[1]
+            new_node = TextNode(f"{sections[0]}", TextType.TEXT)
+            if len(sections[0]) != 0:
+                new_nodes.append(new_node)
+            new_extract_node = TextNode(f"{first_extract}", extract_text_type, f"{second_extract}")
+            new_nodes.append(new_extract_node)
+        if len(sections) > 1:
+            if len(sections[1]) != 0:
+                new_node = TextNode(f"{sections[1]}", TextType.TEXT)
+                new_nodes.append(new_node)
+    return new_nodes
+    
+def split_nodes_image(old_nodes):
+    return split_nodes(old_nodes, extract_markdown_images, TextType.IMAGE)
+
+def split_nodes_link(old_nodes):
+    return split_nodes(old_nodes, extract_markdown_links, TextType.LINK)
+
+
+
+    
+
